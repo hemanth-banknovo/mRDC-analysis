@@ -1,0 +1,22 @@
+select
+extract(month from t.created_date) as month_nbr,
+to_char(t.created_date,'Mon') AS month,
+extract(year from t.created_date) as yyyy,
+b.meta->'business'->'business_type' as btype,
+COUNT(t.amount),
+SUM(ABS(t.amount))
+FROM
+transactions as t , businesses as b
+where
+t.business_id = b.id
+and t.type = 'credit'
+AND t.status = 'active'
+AND LOWER(t.medium) IN ('new account deposit', 'deposit')
+AND (
+LOWER(TRIM(t.description)) = 'deposit'
+OR
+LOWER(t.description) ILIKE '%mobile check%'
+)
+and b.meta->'business'->'business_type' ? 'corporation'
+group by month_nbr, month, yyyy
+order by yyyy,month_nbr
