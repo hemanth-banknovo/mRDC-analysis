@@ -1,0 +1,34 @@
+##created a view since the remote_deposit_checks table is quite heavy with wausau_response_meta and check_images
+
+create view mRDC_view as 
+			select 	  business_id, 
+	 				  id , 
+	 				  created_at , 
+	 				  processed_on, 
+	 				  updated_at, 
+	 				  status, 
+	 				  amount, 
+	 				  TRIM (leading '0' from wausau_response_meta ->> 'auxOnUs') as checkno
+	 		from remote_deposit_checks;
+      
+      
+## Then used the view to calculate the average return periods
+      
+      
+select t.business_id, 
+	   t.transaction_date,
+	   r.created_at,
+	   r.checkno,
+	   t.id,
+	   t.amount,
+	   (extract(epoch FROM (t.transaction_date - MAX(r.created_at))::interval)/3600 )/24 AS total_avg_return_time
+from transactions as t, mRDC_view as r
+where t.business_id  = r.business_id 
+and t.medium = 'Returned Check'
+and t.description = r.checkno 
+and t.created_date between ((timestamp '2021-04-01 00:00:00') AT TIME ZONE 'EDT')
+                                                                 AND ((timestamp '2021-09-30 23:59:59') AT TIME ZONE 'EDT')
+--and t.business_id  = '08377925-5f3e-4b80-aa68-1446a7f68263'
+and t.transaction_date > r.created_at 
+group by t.business_id, t.transaction_date,r.created_at,r.checkno,t.id
+order by total_avg_return_time asc 
